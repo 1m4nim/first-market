@@ -9,7 +9,7 @@ export const client = createClient({
 export const getProduct = async (queries = {}) => {
   try {
     const listData = await client.get({
-      endpoint: "product",
+      endpoint: "overview",
       queries,
     });
     return listData;

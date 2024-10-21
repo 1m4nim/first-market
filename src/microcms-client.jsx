@@ -16,7 +16,7 @@ client
 export const getProduct = async (queries) => {
   try {
     const listData = await client.getList({
-      endpoint: "product",
+      endpoint: "overview",
       queries,
     });
     return listData;
