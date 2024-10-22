@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { getProduct } from "../microcms-client";
+import { getProduct, deleteProduct } from "../microcms-client";
 import Modal from "react-modal";
 
+// モーダルのアプリ要素を設定
 Modal.setAppElement("#root");
 
 export default function Main() {
@@ -11,22 +12,19 @@ export default function Main() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredOverviews, setFilteredOverviews] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false); // 削除確認モーダルの状態
   const [currentProduct, setCurrentProduct] = useState(null);
   const [bidAmount, setBidAmount] = useState("");
-  const [bidderName, setBidderName] = useState(""); // 入札者の名前を管理する状態
-  const [highestBidInfo, setHighestBidInfo] = useState({
-    // 最高入札情報を管理
-    amount: 0,
-    name: "",
-  });
+  const [bidderName, setBidderName] = useState("");
+  const [highestBidInfo, setHighestBidInfo] = useState({ amount: 0, name: "" });
 
   useEffect(() => {
     const fetchOverviews = async () => {
+      setIsLoading(true);
       try {
         const data = await getProduct();
         if (data?.contents) {
           setOverviews(data.contents);
-          console.log("取得したデータ:", data.contents);
         } else {
           setError("データの取得に失敗しました");
         }
@@ -54,8 +52,8 @@ export default function Main() {
 
   const openBidModal = (product) => {
     setCurrentProduct(product);
-    setBidAmount(""); // モーダルを開いたときに入力をクリア
-    setBidderName(""); // モーダルを開いたときに入札者名をクリア
+    setBidAmount("");
+    setBidderName("");
     setModalIsOpen(true);
   };
 
@@ -70,15 +68,36 @@ export default function Main() {
     if (currentProduct && bidAmount && bidderName) {
       const bidValue = parseFloat(bidAmount);
       if (bidValue > highestBidInfo.amount) {
-        setHighestBidInfo({
-          amount: bidValue, // 新しい最高価格に更新
-          name: bidderName, // 入札者名を更新
-        });
+        setHighestBidInfo({ amount: bidValue, name: bidderName });
       }
       console.log(
         `入札額: ¥${bidAmount} for ${currentProduct.name} by ${bidderName}`
       );
       closeBidModal();
+    }
+  };
+
+  const openDeleteModal = (product) => {
+    setCurrentProduct(product);
+    setDeleteModalIsOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModalIsOpen(false);
+    setCurrentProduct(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (currentProduct) {
+      try {
+        await deleteProduct(currentProduct.id); // 商品を削除
+        setOverviews((prev) =>
+          prev.filter((item) => item.id !== currentProduct.id)
+        ); // 状態を更新
+      } catch (err) {
+        console.error("削除中にエラーが発生しました:", err);
+      }
+      closeDeleteModal();
     }
   };
 
@@ -127,6 +146,12 @@ export default function Main() {
                   >
                     入札する
                   </button>
+                  <button
+                    onClick={() => openDeleteModal(item)}
+                    style={{ backgroundColor: "red", color: "white" }} // 削除ボタンのスタイル
+                  >
+                    削除
+                  </button>
                   <span style={styles.highestBid}>
                     最高価格: ¥{highestBidInfo.amount.toLocaleString()} (入札者:{" "}
                     {highestBidInfo.name})
@@ -166,11 +191,22 @@ export default function Main() {
           {highestBidInfo.name})
         </p>
       </Modal>
+
+      {/* 削除確認モーダル */}
+      <Modal
+        isOpen={deleteModalIsOpen}
+        onRequestClose={closeDeleteModal}
+        contentLabel="削除確認モーダル"
+      >
+        <h2>{currentProduct?.name} を削除しますか？</h2>
+        <p>この操作は元に戻せません。</p>
+        <button onClick={handleDeleteConfirm}>削除</button>
+        <button onClick={closeDeleteModal}>キャンセル</button>
+      </Modal>
     </div>
   );
 }
 
-// スタイル
 const styles = {
   header: {
     backgroundImage: "url('/assets/background.jpg')",
@@ -270,5 +306,14 @@ const styles = {
     marginBottom: "10px",
     padding: "8px",
     width: "100%",
+  },
+  deleteButton: {
+    marginLeft: "10px",
+    padding: "8px 12px",
+    backgroundColor: "red",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
+    cursor: "pointer",
   },
 };

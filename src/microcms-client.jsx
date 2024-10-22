@@ -21,17 +21,15 @@ export const client = createClient({
 });
 
 // 商品データを取得する関数
-export const getProduct = async () => {
+export const getProduct = async (queries = {}) => {
   try {
-    console.log("API リクエスト開始");
-    // まず単純な GET リクエストを試してみる
-    const data = await client.get({
+    const listData = await client.get({
       endpoint: "overview",
+      queries,
     });
-    console.log("データ取得成功");
-    return data;
+    return listData;
   } catch (error) {
-    console.error("API リクエストエラー:", {
+    console.error("API リクエストエラーはこれ！:", {
       message: error.message,
       status: error.response?.status,
       statusText: error.response?.statusText,
@@ -41,5 +39,17 @@ export const getProduct = async () => {
       },
     });
     throw error;
+  }
+};
+
+export const deleteProduct = async (id) => {
+  try {
+    await client.delete({
+      endpoint: "overview",
+      contentId: id,
+    });
+  } catch (error) {
+    console.error("削除中にエラーが発生しました:", error);
+    throw error; // エラーを再スローして、呼び出し元でキャッチできるようにする
   }
 };
