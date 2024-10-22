@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { getProduct } from "../microcms-client";
-import { Link } from "react-router-dom";
+import Modal from "react-modal";
+
+Modal.setAppElement("#root");
 
 export default function Main() {
   const [overviews, setOverviews] = useState([]);
@@ -8,6 +10,15 @@ export default function Main() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredOverviews, setFilteredOverviews] = useState([]);
+  const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState(null);
+  const [bidAmount, setBidAmount] = useState("");
+  const [bidderName, setBidderName] = useState(""); // 入札者の名前を管理する状態
+  const [highestBidInfo, setHighestBidInfo] = useState({
+    // 最高入札情報を管理
+    amount: 0,
+    name: "",
+  });
 
   useEffect(() => {
     const fetchOverviews = async () => {
@@ -39,6 +50,36 @@ export default function Main() {
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
+  };
+
+  const openBidModal = (product) => {
+    setCurrentProduct(product);
+    setBidAmount(""); // モーダルを開いたときに入力をクリア
+    setBidderName(""); // モーダルを開いたときに入札者名をクリア
+    setModalIsOpen(true);
+  };
+
+  const closeBidModal = () => {
+    setModalIsOpen(false);
+    setBidAmount("");
+    setBidderName("");
+    setCurrentProduct(null);
+  };
+
+  const handleBidSubmit = () => {
+    if (currentProduct && bidAmount && bidderName) {
+      const bidValue = parseFloat(bidAmount);
+      if (bidValue > highestBidInfo.amount) {
+        setHighestBidInfo({
+          amount: bidValue, // 新しい最高価格に更新
+          name: bidderName, // 入札者名を更新
+        });
+      }
+      console.log(
+        `入札額: ¥${bidAmount} for ${currentProduct.name} by ${bidderName}`
+      );
+      closeBidModal();
+    }
   };
 
   return (
@@ -79,18 +120,57 @@ export default function Main() {
                 )}
                 <p>{item.description}</p>
                 <p style={styles.price}>価格: ¥{item.price.toLocaleString()}</p>
-                <Link to={`/auction/${item.id}`} style={styles.link}>
-                  入札する
-                </Link>
+                <div style={styles.bidContainer}>
+                  <button
+                    onClick={() => openBidModal(item)}
+                    style={styles.button}
+                  >
+                    入札する
+                  </button>
+                  <span style={styles.highestBid}>
+                    最高価格: ¥{highestBidInfo.amount.toLocaleString()} (入札者:{" "}
+                    {highestBidInfo.name})
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* 入札モーダル */}
+      <Modal
+        isOpen={modalIsOpen}
+        onRequestClose={closeBidModal}
+        contentLabel="入札モーダル"
+      >
+        <h2>{currentProduct?.name} に入札</h2>
+        <input
+          type="text"
+          placeholder="入札者名を入力..."
+          value={bidderName}
+          onChange={(e) => setBidderName(e.target.value)}
+          style={styles.bidderInput}
+        />
+        <input
+          type="number"
+          placeholder="入札額を入力..."
+          value={bidAmount}
+          onChange={(e) => setBidAmount(e.target.value)}
+          style={styles.bidInput}
+        />
+        <button onClick={handleBidSubmit}>入札する</button>
+        <button onClick={closeBidModal}>キャンセル</button>
+        <p>
+          現在の最高価格: ¥{highestBidInfo.amount.toLocaleString()} (入札者:{" "}
+          {highestBidInfo.name})
+        </p>
+      </Modal>
     </div>
   );
 }
 
+// スタイル
 const styles = {
   header: {
     backgroundImage: "url('/assets/background.jpg')",
@@ -171,8 +251,24 @@ const styles = {
     fontWeight: "bold",
     marginTop: "10px",
   },
-  link: {
-    textDecoration: "none",
-    color: "#BE7B6F",
+  bidContainer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: "10px",
+  },
+  highestBid: {
+    marginLeft: "10px",
+    fontWeight: "bold",
+  },
+  bidderInput: {
+    marginBottom: "10px",
+    padding: "8px",
+    width: "100%",
+  },
+  bidInput: {
+    marginBottom: "10px",
+    padding: "8px",
+    width: "100%",
   },
 };
