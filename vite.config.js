@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  base: "./",
   server: {
     https: false,  // HTTPSを無効化し、HTTPでサーバーを起動する
     proxy: {
