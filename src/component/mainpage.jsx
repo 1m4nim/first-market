@@ -1,18 +1,19 @@
 import { useState, useEffect } from "react";
 import { getProduct } from "../microcms-client";
+import { Link } from "react-router-dom";
 
 export default function Main() {
   const [overviews, setOverviews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState(""); // 検索クエリの状態
+  const [searchQuery, setSearchQuery] = useState("");
   const [filteredOverviews, setFilteredOverviews] = useState([]);
 
   useEffect(() => {
     const fetchOverviews = async () => {
       try {
         const data = await getProduct();
-        if (data && data.contents) {
+        if (data?.contents) {
           setOverviews(data.contents);
           console.log("取得したデータ:", data.contents);
         } else {
@@ -20,7 +21,7 @@ export default function Main() {
         }
       } catch (err) {
         console.error("エラーが発生しました:", err);
-        setError(err.message);
+        setError("データの取得中にエラーが発生しました");
       } finally {
         setIsLoading(false);
       }
@@ -36,23 +37,62 @@ export default function Main() {
     setFilteredOverviews(filtered);
   }, [searchQuery, overviews]);
 
-  const searchContainerStyle = {
-    padding: "20px",
-    marginBottom: "20px",
-    display: "flex",
-    justifyContent: "center",
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
   };
 
-  const searchInputStyle = {
-    padding: "10px",
-    width: "80%",
-    maxWidth: "500px",
-    borderRadius: "5px",
-    border: "1px solid #ddd",
-    fontSize: "16px",
-  };
+  return (
+    <div>
+      <header style={styles.header}>
+        <h1 style={styles.title}>First-Market</h1>
+        <p style={styles.description}>
+          皆さんのお買い物の選択肢のなかで1番目の市場になりますように...
+        </p>
+      </header>
 
-  const headerStyle = {
+      <div style={styles.searchContainer}>
+        <input
+          type="text"
+          placeholder="商品名を検索..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          style={styles.searchInput}
+        />
+      </div>
+
+      <div style={styles.content}>
+        {isLoading && <p>読み込み中...</p>}
+        {error && <p style={styles.error}>エラーだよ！！！: {error}</p>}
+        {overviews.length === 0 && !isLoading && <p>商品が見つかりません</p>}
+
+        {filteredOverviews.length > 0 && (
+          <div style={styles.overviewList}>
+            {filteredOverviews.map((item) => (
+              <div key={item.id} style={styles.itemContainer}>
+                <h2>{item.name}</h2>
+                {item.image && (
+                  <img
+                    src={item.image[0].url}
+                    alt={item.name}
+                    style={styles.itemImage}
+                  />
+                )}
+                <p>{item.description}</p>
+                <p style={styles.price}>価格: ¥{item.price.toLocaleString()}</p>
+                <Link to={`/auction/${item.id}`} style={styles.link}>
+                  入札する
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  header: {
     backgroundImage: "url('/assets/background.jpg')",
     backgroundSize: "cover",
     backgroundRepeat: "no-repeat",
@@ -66,17 +106,15 @@ export default function Main() {
     margin: 0,
     position: "relative",
     flexDirection: "column",
-  };
-
-  const titleStyle = {
+  },
+  title: {
     color: "#BE7B6F",
     backgroundColor: "#d1c7cd",
     borderRadius: "5px",
     fontFamily: "Playwrite England SemiJoined",
     padding: "5px 10px",
-  };
-
-  const descriptionStyle = {
+  },
+  description: {
     color: "black",
     fontWeight: "bold",
     fontSize: "20px",
@@ -85,82 +123,56 @@ export default function Main() {
     width: "60%",
     textAlign: "center",
     backgroundColor: "white",
-  };
-
-  const contentStyle = {
+  },
+  searchContainer: {
+    padding: "20px",
+    marginBottom: "20px",
+    display: "flex",
+    justifyContent: "center",
+  },
+  searchInput: {
+    padding: "10px",
+    width: "80%",
+    maxWidth: "500px",
+    borderRadius: "5px",
+    border: "1px solid #ddd",
+    fontSize: "16px",
+  },
+  content: {
+    padding: "20px",
+  },
+  error: {
+    color: "red",
+  },
+  overviewList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
+    alignItems: "center",
+  },
+  itemContainer: {
     padding: "20px",
     backgroundColor: "#f5f5f5",
     borderRadius: "8px",
     marginBottom: "10px",
     width: "80%",
     margin: "0 auto",
-  };
-
-  const priceStyle = {
+  },
+  itemImage: {
+    width: "25%",
+    height: "auto",
+    maxWidth: "600px",
+    display: "block",
+    margin: "15px auto",
+  },
+  price: {
     color: "#BE7B6F",
     fontSize: "1.2em",
     fontWeight: "bold",
     marginTop: "10px",
-  };
-
-  return (
-    <div>
-      <header style={headerStyle}>
-        <h1 style={titleStyle}>First-Market</h1>
-        <p style={descriptionStyle}>
-          皆さんのお買い物の選択肢のなかで1番目の市場になりますように...
-        </p>
-      </header>
-
-      <div style={searchContainerStyle}>
-        <input
-          type="text"
-          placeholder="商品名を検索..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={searchInputStyle}
-        />
-      </div>
-
-      <div style={{ padding: "20px" }}>
-        {isLoading ? (
-          <p>読み込み中...</p>
-        ) : error ? (
-          <p style={{ color: "red" }}>エラーだよ！！！: {error}</p>
-        ) : overviews.length === 0 ? (
-          <p>商品が見つかりません</p>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "20px",
-              alignItems: "center",
-            }}
-          >
-            {filteredOverviews.map((item) => (
-              <div key={item.id} style={contentStyle}>
-                <h2>{item.name}</h2>
-                {item.image && (
-                  <img
-                    src={item.image[0].url}
-                    alt={item.name}
-                    style={{
-                      width: "25%",
-                      height: "auto",
-                      maxWidth: "600px",
-                      display: "block",
-                      margin: "15px auto",
-                    }}
-                  />
-                )}
-                <p>{item.description}</p>
-                <p style={priceStyle}>価格: ¥{item.price.toLocaleString()}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+  },
+  link: {
+    textDecoration: "none",
+    color: "#BE7B6F",
+  },
+};
