@@ -2,19 +2,29 @@ import { useState, useEffect } from "react";
 import { getProduct } from "../microcms-client";
 
 export default function Main() {
-  const [products, setProducts] = useState([]);
+  const [overviews, setOverviews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      const data = await getProduct();
-      if (data) {
-        setProducts(data.contents);
+    const fetchOverviews = async () => {
+      try {
+        const data = await getProduct();
+        if (data && data.contents) {
+          setOverviews(data.contents);
+          console.log("取得したデータ:", data.contents);
+        } else {
+          setError("データの取得に失敗しました");
+        }
+      } catch (err) {
+        console.error("エラーが発生しました:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
-    fetchProducts();
+    fetchOverviews();
   }, []);
 
   const headerStyle = {
@@ -49,6 +59,7 @@ export default function Main() {
     textDecoration: "underline",
     width: "60%",
     textAlign: "center",
+    backgroundColor: "white",
   };
 
   const contentStyle = {
@@ -57,6 +68,14 @@ export default function Main() {
     borderRadius: "8px",
     marginBottom: "10px",
     width: "80%",
+    margin: "0 auto",
+  };
+
+  const priceStyle = {
+    color: "#BE7B6F",
+    fontSize: "1.2em",
+    fontWeight: "bold",
+    marginTop: "10px",
   };
 
   return (
@@ -68,23 +87,43 @@ export default function Main() {
         </p>
       </header>
 
-      <div style={{ padding: "20px", width: "100vw" }}>
+      <div style={{ padding: "20px" }}>
         {isLoading ? (
           <p>読み込み中...</p>
+        ) : error ? (
+          <p style={{ color: "red" }}>エラーだよ！！！: {error}</p>
+        ) : overviews.length === 0 ? (
+          <p>商品が見つかりません</p>
         ) : (
-          products.map((product) => (
-            <div key={product.id} style={contentStyle}>
-              <h2>{product.name}</h2>
-              <p>{product.product_description}</p>
-              {product.image && (
-                <img
-                  src={product.image.url}
-                  alt={product.name}
-                  style={{ width: "100vw", height: "auto", maxWidth: "600px" }}
-                />
-              )}
-            </div>
-          ))
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px",
+              alignItems: "center",
+            }}
+          >
+            {overviews.map((item) => (
+              <div key={item.id} style={contentStyle}>
+                <h2>{item.name}</h2>
+                {item.image && (
+                  <img
+                    src={item.image[0].url}
+                    alt={item.name}
+                    style={{
+                      width: "25%",
+                      height: "auto",
+                      maxWidth: "600px",
+                      display: "block",
+                      margin: "15px auto",
+                    }}
+                  />
+                )}
+                <p>{item.description}</p>
+                <p style={priceStyle}>価格: ¥{item.price.toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
