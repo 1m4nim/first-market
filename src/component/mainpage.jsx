@@ -5,6 +5,8 @@ export default function Main() {
   const [overviews, setOverviews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState(""); // 検索クエリの状態
+  const [filteredOverviews, setFilteredOverviews] = useState([]);
 
   useEffect(() => {
     const fetchOverviews = async () => {
@@ -26,6 +28,29 @@ export default function Main() {
 
     fetchOverviews();
   }, []);
+
+  useEffect(() => {
+    const filtered = overviews.filter((item) =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredOverviews(filtered);
+  }, [searchQuery, overviews]);
+
+  const searchContainerStyle = {
+    padding: "20px",
+    marginBottom: "20px",
+    display: "flex",
+    justifyContent: "center",
+  };
+
+  const searchInputStyle = {
+    padding: "10px",
+    width: "80%",
+    maxWidth: "500px",
+    borderRadius: "5px",
+    border: "1px solid #ddd",
+    fontSize: "16px",
+  };
 
   const headerStyle = {
     backgroundImage: "url('/assets/background.jpg')",
@@ -87,6 +112,16 @@ export default function Main() {
         </p>
       </header>
 
+      <div style={searchContainerStyle}>
+        <input
+          type="text"
+          placeholder="商品名を検索..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={searchInputStyle}
+        />
+      </div>
+
       <div style={{ padding: "20px" }}>
         {isLoading ? (
           <p>読み込み中...</p>
@@ -103,7 +138,7 @@ export default function Main() {
               alignItems: "center",
             }}
           >
-            {overviews.map((item) => (
+            {filteredOverviews.map((item) => (
               <div key={item.id} style={contentStyle}>
                 <h2>{item.name}</h2>
                 {item.image && (
