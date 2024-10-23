@@ -18,16 +18,3 @@ export const getProduct = async (queries = {}) => {
     return null;
   }
 };
-
-// 商品データを削除する
-export const deleteProduct = async (id) => {
-  try {
-    await client.delete({
-      endpoint: "overview",
-      contentId: id, // 削除する商品のID
-    });
-    console.log(`商品ID ${id} を削除しました`);
-  } catch (error) {
-    console.error("削除エラー:", error.message || error);
-  }
-};

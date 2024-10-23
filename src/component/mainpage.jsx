@@ -19,6 +19,30 @@ export default function Main() {
   const [highestBidInfo, setHighestBidInfo] = useState({ amount: 0, name: "" });
 
   useEffect(() => {
+    let isMounted = true; // マウント状態のフラグ
+
+    const fetchOverviews = async () => {
+      try {
+        const data = await getProduct();
+        if (isMounted && data?.contents) {
+          setOverviews(data.contents);
+        }
+      } catch (err) {
+        console.error("エラーだよ！！！", err);
+        if (isMounted) {
+          setError("データの取得中にエラーが発生しました");
+        }
+      }
+    };
+
+    fetchOverviews();
+
+    return () => {
+      isMounted = false; // アンマウント時にフラグを変更
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchOverviews = async () => {
       setIsLoading(true);
       try {
@@ -130,28 +154,12 @@ export default function Main() {
             {filteredOverviews.map((item) => (
               <div key={item.id} style={styles.itemContainer}>
                 <h2>{item.name}</h2>
-                {item.image && (
-                  <img
-                    src={item.image[0].url}
-                    alt={item.name}
-                    style={styles.itemImage}
-                  />
-                )}
+
                 <p>{item.description}</p>
                 <p style={styles.price}>価格: ¥{item.price.toLocaleString()}</p>
                 <div style={styles.bidContainer}>
-                  <button
-                    onClick={() => openBidModal(item)}
-                    style={styles.button}
-                  >
-                    入札する
-                  </button>
-                  <button
-                    onClick={() => openDeleteModal(item)}
-                    style={{ backgroundColor: "red", color: "white" }} // 削除ボタンのスタイル
-                  >
-                    削除
-                  </button>
+                  <button onClick={() => openBidModal(item)}>入札する</button>
+                  <button onClick={() => openDeleteModal(item)}>削除</button>
                   <span style={styles.highestBid}>
                     最高価格: ¥{highestBidInfo.amount.toLocaleString()} (入札者:{" "}
                     {highestBidInfo.name})
