@@ -6,23 +6,31 @@ function AuctionList() {
   const [auctions, setAuctions] = useState([]);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "auctions"), (snapshot) => {
-      const auctionData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      console.log("取得したオークションデータ:", auctionData); // デバッグ用
-      setAuctions(auctionData);
-    });
+    const unsubscribe = onSnapshot(
+      collection(db, "auctions"),
+      (snapshot) => {
+        const auctionData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        console.log("取得したオークションデータ:", auctionData);
+        setAuctions(auctionData);
+      },
+      (error) => {
+        console.error(
+          "オークションデータの取得中にエラーが発生しました:",
+          error
+        );
+      }
+    );
 
-    // クリーンアップ
     return () => unsubscribe();
   }, []);
 
   return (
     <div>
       {auctions.length === 0 ? (
-        <p>オークションデータがありません</p> // データがない場合のメッセージ
+        <p>オークションデータがありません</p>
       ) : (
         auctions.map((auction) => (
           <div key={auction.id}>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { getProduct, deleteProduct } from "../microcms-client";
+import { getProducts, deleteProduct, addProduct } from "../firebase/firestore";
 import Modal from "react-modal";
+import ProductForm from "./ProductForm";
 
 // モーダルのアプリ要素を設定
 Modal.setAppElement("#root");
@@ -12,41 +13,17 @@ export default function Main() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredOverviews, setFilteredOverviews] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
-  const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false); // 削除確認モーダルの状態
+  const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [bidAmount, setBidAmount] = useState("");
   const [bidderName, setBidderName] = useState("");
   const [highestBidInfo, setHighestBidInfo] = useState({ amount: 0, name: "" });
 
   useEffect(() => {
-    let isMounted = true; // マウント状態のフラグ
-
-    const fetchOverviews = async () => {
-      try {
-        const data = await getProduct();
-        if (isMounted && data?.contents) {
-          setOverviews(data.contents);
-        }
-      } catch (err) {
-        console.error("エラーだよ！！！", err);
-        if (isMounted) {
-          setError("データの取得中にエラーが発生しました");
-        }
-      }
-    };
-
-    fetchOverviews();
-
-    return () => {
-      isMounted = false; // アンマウント時にフラグを変更
-    };
-  }, []);
-
-  useEffect(() => {
     const fetchOverviews = async () => {
       setIsLoading(true);
       try {
-        const data = await getProduct();
+        const data = await getProducts(); // getProducts関数を呼び出す
         if (data?.contents) {
           setOverviews(data.contents);
         } else {
@@ -93,6 +70,9 @@ export default function Main() {
       const bidValue = parseFloat(bidAmount);
       if (bidValue > highestBidInfo.amount) {
         setHighestBidInfo({ amount: bidValue, name: bidderName });
+      } else {
+        alert("入札額は現在の最高価格を超える必要があります。");
+        return;
       }
       console.log(
         `入札額: ¥${bidAmount} for ${currentProduct.name} by ${bidderName}`
@@ -114,14 +94,23 @@ export default function Main() {
   const handleDeleteConfirm = async () => {
     if (currentProduct) {
       try {
-        await deleteProduct(currentProduct.id); // 商品を削除
+        await deleteProduct(currentProduct.id);
         setOverviews((prev) =>
           prev.filter((item) => item.id !== currentProduct.id)
-        ); // 状態を更新
+        );
       } catch (err) {
         console.error("削除中にエラーが発生しました:", err);
       }
       closeDeleteModal();
+    }
+  };
+
+  const handleAddProduct = async (productData) => {
+    try {
+      const productId = await addProduct(productData); // Firestoreに商品を追加
+      setOverviews((prev) => [...prev, { id: productId, ...productData }]); // 商品リストに追加
+    } catch (error) {
+      console.error("商品追加中にエラーが発生しました:", error);
     }
   };
 
@@ -134,6 +123,7 @@ export default function Main() {
         </p>
       </header>
 
+      {/* 検索バーを出品フォームの上に移動 */}
       <div style={styles.searchContainer}>
         <input
           type="text"
@@ -144,22 +134,29 @@ export default function Main() {
         />
       </div>
 
+      <ProductForm onAddProduct={handleAddProduct} />
+
       <div style={styles.content}>
         {isLoading && <p>読み込み中...</p>}
-        {error && <p style={styles.error}>エラーだよ！！！: {error}</p>}
+        {error && <p style={styles.error}></p>}
         {overviews.length === 0 && !isLoading && <p>商品が見つかりません</p>}
 
-        {filteredOverviews.length > 0 && (
-          <div style={styles.overviewList}>
-            {filteredOverviews.map((item) => (
+        {/* 検索結果を表示する部分 */}
+        <div style={styles.overviewList}>
+          {filteredOverviews.length > 0 &&
+            filteredOverviews.map((item) => (
               <div key={item.id} style={styles.itemContainer}>
                 <h2>{item.name}</h2>
-
                 <p>{item.description}</p>
                 <p style={styles.price}>価格: ¥{item.price.toLocaleString()}</p>
                 <div style={styles.bidContainer}>
                   <button onClick={() => openBidModal(item)}>入札する</button>
-                  <button onClick={() => openDeleteModal(item)}>削除</button>
+                  <button
+                    onClick={() => openDeleteModal(item)}
+                    style={styles.deleteButton}
+                  >
+                    削除
+                  </button>
                   <span style={styles.highestBid}>
                     最高価格: ¥{highestBidInfo.amount.toLocaleString()} (入札者:{" "}
                     {highestBidInfo.name})
@@ -167,8 +164,7 @@ export default function Main() {
                 </div>
               </div>
             ))}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* 入札モーダル */}
@@ -208,7 +204,7 @@ export default function Main() {
       >
         <h2>{currentProduct?.name} を削除しますか？</h2>
         <p>この操作は元に戻せません。</p>
-        <button onClick={handleDeleteConfirm}>削除</button>
+        <button onClick={handleDeleteConfirm}>削除する</button>
         <button onClick={closeDeleteModal}>キャンセル</button>
       </Modal>
     </div>
@@ -219,109 +215,81 @@ const styles = {
   header: {
     backgroundImage: "url('/assets/background.jpg')",
     backgroundSize: "cover",
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "center top",
+    backgroundPosition: "center",
     width: "100vw",
     height: "100vh",
-    color: "white",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    margin: 0,
-    position: "relative",
-    flexDirection: "column",
+    backgroundColor: "#f5f5f5",
+    padding: "20px",
   },
   title: {
-    color: "#BE7B6F",
-    backgroundColor: "#d1c7cd",
-    borderRadius: "5px",
-    fontFamily: "Playwrite England SemiJoined",
-    padding: "5px 10px",
+    textAlign: "center",
+    margin: "0",
+    color: "#995143",
+    fontWeight: "bold",
+    fontSize: "45px",
+    backgroundColor: "#E0C0A7",
   },
   description: {
-    color: "black",
-    fontWeight: "bold",
-    fontSize: "20px",
-    marginTop: "10px",
-    textDecoration: "underline",
-    width: "60%",
+    fontSize: "1.2em",
+    color: "#666",
     textAlign: "center",
     backgroundColor: "white",
+    fontWeight: "bold",
   },
   searchContainer: {
-    padding: "20px",
-    marginBottom: "20px",
     display: "flex",
     justifyContent: "center",
+    marginBottom: "20px",
   },
   searchInput: {
+    width: "300px",
     padding: "10px",
-    width: "80%",
-    maxWidth: "500px",
-    borderRadius: "5px",
-    border: "1px solid #ddd",
-    fontSize: "16px",
+    fontSize: "1em",
   },
   content: {
     padding: "20px",
   },
-  error: {
-    color: "red",
-  },
   overviewList: {
     display: "flex",
     flexDirection: "column",
-    gap: "20px",
     alignItems: "center",
   },
   itemContainer: {
-    padding: "20px",
-    backgroundColor: "#f5f5f5",
-    borderRadius: "8px",
-    marginBottom: "10px",
-    width: "80%",
-    margin: "0 auto",
-  },
-  itemImage: {
-    width: "25%",
-    height: "auto",
-    maxWidth: "600px",
-    display: "block",
-    margin: "15px auto",
+    border: "1px solid #ddd",
+    borderRadius: "5px",
+    padding: "10px",
+    margin: "10px",
+    width: "300px",
+    textAlign: "center",
   },
   price: {
-    color: "#BE7B6F",
     fontSize: "1.2em",
     fontWeight: "bold",
-    marginTop: "10px",
   },
   bidContainer: {
     display: "flex",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     marginTop: "10px",
   },
   highestBid: {
     marginLeft: "10px",
-    fontWeight: "bold",
+  },
+  error: {
+    color: "red",
   },
   bidderInput: {
-    marginBottom: "10px",
-    padding: "8px",
     width: "100%",
+    padding: "10px",
+    margin: "5px 0",
   },
   bidInput: {
-    marginBottom: "10px",
-    padding: "8px",
     width: "100%",
-  },
-  deleteButton: {
-    marginLeft: "10px",
-    padding: "8px 12px",
-    backgroundColor: "red",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
+    padding: "10px",
+    margin: "5px 0",
   },
 };
