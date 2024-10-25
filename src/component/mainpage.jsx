@@ -1,295 +1,280 @@
-import { useState, useEffect } from "react";
-import { getProducts, deleteProduct, addProduct } from "../firebase/firestore";
-import Modal from "react-modal";
+import { useEffect, useState } from "react";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
 import ProductForm from "./ProductForm";
 
-// モーダルのアプリ要素を設定
-Modal.setAppElement("#root");
-
-export default function Main() {
-  const [overviews, setOverviews] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+const MainPage = () => {
+  const [products, setProducts] = useState([]); // 商品データを管理
+  const [filteredProducts, setFilteredProducts] = useState([]); // フィルタリングされた商品データ
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredOverviews, setFilteredOverviews] = useState([]);
-  const [modalIsOpen, setModalIsOpen] = useState(false);
-  const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false);
-  const [currentProduct, setCurrentProduct] = useState(null);
-  const [bidAmount, setBidAmount] = useState("");
   const [bidderName, setBidderName] = useState("");
-  const [highestBidInfo, setHighestBidInfo] = useState({ amount: 0, name: "" });
+  const [bidPrice, setBidPrice] = useState("");
 
+  // 削除モーダル用の状態
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+
+  // 商品を取得する関数
+  const fetchProducts = async () => {
+    const db = getFirestore();
+    const querySnapshot = await getDocs(collection(db, "products")); // Firestoreの"products"コレクションからデータを取得
+    const productsData = querySnapshot.docs.map((doc) => ({
+      id: doc.id, // FirestoreのIDを使用
+      ...doc.data(), // 商品データを取得
+    }));
+    setProducts(productsData); // 取得した商品データをセット
+    setFilteredProducts(productsData); // フィルタリングされた商品データを初期化
+  };
+
+  // 商品データの取得
   useEffect(() => {
-    const fetchOverviews = async () => {
-      setIsLoading(true);
-      try {
-        const data = await getProducts(); // getProducts関数を呼び出す
-        if (data?.contents) {
-          setOverviews(data.contents);
-        } else {
-          setError("データの取得に失敗しました");
-        }
-      } catch (err) {
-        console.error("エラーが発生しました:", err);
-        setError("データの取得中にエラーが発生しました");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchOverviews();
+    fetchProducts();
   }, []);
 
+  // 検索クエリによるフィルタリング
   useEffect(() => {
-    const filtered = overviews.filter((item) =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredOverviews(filtered);
-  }, [searchQuery, overviews]);
-
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const openBidModal = (product) => {
-    setCurrentProduct(product);
-    setBidAmount("");
-    setBidderName("");
-    setModalIsOpen(true);
-  };
-
-  const closeBidModal = () => {
-    setModalIsOpen(false);
-    setBidAmount("");
-    setBidderName("");
-    setCurrentProduct(null);
-  };
-
-  const handleBidSubmit = () => {
-    if (currentProduct && bidAmount && bidderName) {
-      const bidValue = parseFloat(bidAmount);
-      if (bidValue > highestBidInfo.amount) {
-        setHighestBidInfo({ amount: bidValue, name: bidderName });
-      } else {
-        alert("入札額は現在の最高価格を超える必要があります。");
-        return;
-      }
-      console.log(
-        `入札額: ¥${bidAmount} for ${currentProduct.name} by ${bidderName}`
+    const handler = setTimeout(() => {
+      const filtered = products.filter((item) =>
+        item.productName.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      closeBidModal();
+      setFilteredProducts(filtered);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery, products]);
+
+  const handleBid = async (productId, currentPrice) => {
+    if (!bidderName || !bidPrice) {
+      alert("入札者名と入札金額を入力してください。");
+      return;
     }
+
+    // 入札金額が現在の価格より高いか確認
+    if (parseInt(bidPrice, 10) <= currentPrice) {
+      alert(
+        `入札金額は現在の価格より高く設定してください。現在の価格: ${currentPrice}円`
+      );
+      return;
+    }
+
+    const db = getFirestore();
+    const productRef = doc(db, "products", productId);
+
+    // Firestoreに入札者名と入札金額を更新
+    await updateDoc(productRef, {
+      highestBidder: bidderName,
+      highestBid: parseInt(bidPrice, 10),
+    });
+
+    fetchProducts(); // 更新後にリストを再取得
+    setBidderName("");
+    setBidPrice("");
   };
 
+  // 削除モーダルを開く関数
   const openDeleteModal = (product) => {
-    setCurrentProduct(product);
-    setDeleteModalIsOpen(true);
+    setProductToDelete(product);
+    setIsDeleteModalOpen(true);
   };
 
+  // 削除モーダルを閉じる関数
   const closeDeleteModal = () => {
-    setDeleteModalIsOpen(false);
-    setCurrentProduct(null);
+    setIsDeleteModalOpen(false);
+    setProductToDelete(null);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (currentProduct) {
-      try {
-        await deleteProduct(currentProduct.id);
-        setOverviews((prev) =>
-          prev.filter((item) => item.id !== currentProduct.id)
-        );
-      } catch (err) {
-        console.error("削除中にエラーが発生しました:", err);
-      }
-      closeDeleteModal();
-    }
-  };
-
-  const handleAddProduct = async (productData) => {
-    try {
-      const productId = await addProduct(productData); // Firestoreに商品を追加
-      setOverviews((prev) => [...prev, { id: productId, ...productData }]); // 商品リストに追加
-    } catch (error) {
-      console.error("商品追加中にエラーが発生しました:", error);
+  // 削除処理
+  const handleDelete = async () => {
+    if (productToDelete) {
+      const db = getFirestore();
+      const productRef = doc(db, "products", productToDelete.id);
+      await deleteDoc(productRef); // Firestoreから商品を削除
+      fetchProducts(); // 商品リストを再取得
+      closeDeleteModal(); // モーダルを閉じる
     }
   };
 
   return (
     <div>
-      <header style={styles.header}>
-        <h1 style={styles.title}>First-Market</h1>
-        <p style={styles.description}>
-          皆さんのお買い物の選択肢のなかで1番目の市場になりますように...
+      <header
+        style={{
+          backgroundImage: "url('/assets/background.jpg')",
+          backgroundSize: "cover",
+          width: "100vw",
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#754f6e",
+          fontWeight: "bold",
+          fontSize: "56px",
+        }}
+      >
+        <div style={{ backgroundColor: "#E5D2CE", borderRadius: "30px" }}>
+          First-Market
+        </div>
+        <p
+          style={{
+            color: "black",
+            backgroundColor: "white",
+            fontSize: "24px",
+            marginTop: "10px",
+          }}
+        >
+          皆さんにとって一番目の選択肢がこの市場になりますように
         </p>
       </header>
 
-      {/* 検索バーを出品フォームの上に移動 */}
-      <div style={styles.searchContainer}>
-        <input
-          type="text"
-          placeholder="商品名を検索..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          style={styles.searchInput}
-        />
-      </div>
+      <input
+        type="text"
+        placeholder="商品名で検索"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        style={{
+          width: "300px",
+          height: "52px",
+          margin: "20px auto",
+          display: "block",
+        }}
+      />
 
-      <ProductForm onAddProduct={handleAddProduct} />
+      {searchQuery && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
+          {filteredProducts.map((product) => (
+            <div
+              key={product.id}
+              style={{
+                border: "1px solid #ccc",
+                borderRadius: "8px",
+                padding: "20px",
+                margin: "10px",
+                width: "200px",
+                textAlign: "center",
+              }}
+            >
+              <img
+                src={product.imageUrl}
+                alt={product.productName}
+                style={{ width: "100px", height: "auto" }}
+              />
+              <h2>{product.productName}</h2>
+              <p>出品者: {product.sellerName}</p>
+              <p>価格: {product.productPrice}円</p>
+              <p>最高入札者: {product.highestBidder || "なし"}</p>
+              <p>最高入札額: {product.highestBid || "なし"}円</p>
 
-      <div style={styles.content}>
-        {isLoading && <p>読み込み中...</p>}
-        {error && <p style={styles.error}></p>}
-        {overviews.length === 0 && !isLoading && <p>商品が見つかりません</p>}
+              {/* 入札者名と入札金額の入力 */}
+              <input
+                type="text"
+                placeholder="入札者名"
+                value={bidderName}
+                onChange={(e) => setBidderName(e.target.value)}
+                style={{ margin: "5px", width: "90%" }}
+              />
+              <input
+                type="number"
+                placeholder="入札金額"
+                value={bidPrice}
+                onChange={(e) => setBidPrice(e.target.value)}
+                style={{ margin: "5px", width: "90%" }}
+              />
 
-        {/* 検索結果を表示する部分 */}
-        <div style={styles.overviewList}>
-          {filteredOverviews.length > 0 &&
-            filteredOverviews.map((item) => (
-              <div key={item.id} style={styles.itemContainer}>
-                <h2>{item.name}</h2>
-                <p>{item.description}</p>
-                <p style={styles.price}>価格: ¥{item.price.toLocaleString()}</p>
-                <div style={styles.bidContainer}>
-                  <button onClick={() => openBidModal(item)}>入札する</button>
-                  <button
-                    onClick={() => openDeleteModal(item)}
-                    style={styles.deleteButton}
-                  >
-                    削除
-                  </button>
-                  <span style={styles.highestBid}>
-                    最高価格: ¥{highestBidInfo.amount.toLocaleString()} (入札者:{" "}
-                    {highestBidInfo.name})
-                  </span>
-                </div>
+              {/* 編集ボタンと入札ボタンを同じ行に配置 */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginTop: "10px",
+                }}
+              >
+                <button
+                  onClick={() => handleBid(product.id, product.productPrice)}
+                  style={{
+                    backgroundColor: "#754f6e",
+                    color: "white",
+                    padding: "10px",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    marginRight: "5px",
+                    flex: "1",
+                  }}
+                >
+                  入札する
+                </button>
+
+                {/* 削除ボタン */}
+                <button
+                  onClick={() => openDeleteModal(product)}
+                  style={{
+                    backgroundColor: "red",
+                    color: "white",
+                    padding: "10px",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    marginLeft: "5px",
+                    flex: "1",
+                  }}
+                >
+                  削除
+                </button>
               </div>
-            ))}
+            </div>
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* 入札モーダル */}
-      <Modal
-        isOpen={modalIsOpen}
-        onRequestClose={closeBidModal}
-        contentLabel="入札モーダル"
-      >
-        <h2>{currentProduct?.name} に入札</h2>
-        <input
-          type="text"
-          placeholder="入札者名を入力..."
-          value={bidderName}
-          onChange={(e) => setBidderName(e.target.value)}
-          style={styles.bidderInput}
-        />
-        <input
-          type="number"
-          placeholder="入札額を入力..."
-          value={bidAmount}
-          onChange={(e) => setBidAmount(e.target.value)}
-          style={styles.bidInput}
-        />
-        <button onClick={handleBidSubmit}>入札する</button>
-        <button onClick={closeBidModal}>キャンセル</button>
-        <p>
-          現在の最高価格: ¥{highestBidInfo.amount.toLocaleString()} (入札者:{" "}
-          {highestBidInfo.name})
-        </p>
-      </Modal>
+      {/* 削除モーダル */}
+      {isDeleteModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              padding: "20px",
+              borderRadius: "8px",
+              textAlign: "center",
+            }}
+          >
+            <p>本当にこの商品を削除しますか？</p>
+            <button onClick={handleDelete} style={{ margin: "5px" }}>
+              はい
+            </button>
+            <button onClick={closeDeleteModal} style={{ margin: "5px" }}>
+              いいえ
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* 削除確認モーダル */}
-      <Modal
-        isOpen={deleteModalIsOpen}
-        onRequestClose={closeDeleteModal}
-        contentLabel="削除確認モーダル"
-      >
-        <h2>{currentProduct?.name} を削除しますか？</h2>
-        <p>この操作は元に戻せません。</p>
-        <button onClick={handleDeleteConfirm}>削除する</button>
-        <button onClick={closeDeleteModal}>キャンセル</button>
-      </Modal>
+      <ProductForm fetchProducts={fetchProducts} />
     </div>
   );
-}
-
-const styles = {
-  header: {
-    backgroundImage: "url('/assets/background.jpg')",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    width: "100vw",
-    height: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f5f5f5",
-    padding: "20px",
-  },
-  title: {
-    textAlign: "center",
-    margin: "0",
-    color: "#995143",
-    fontWeight: "bold",
-    fontSize: "45px",
-    backgroundColor: "#E0C0A7",
-  },
-  description: {
-    fontSize: "1.2em",
-    color: "#666",
-    textAlign: "center",
-    backgroundColor: "white",
-    fontWeight: "bold",
-  },
-  searchContainer: {
-    display: "flex",
-    justifyContent: "center",
-    marginBottom: "20px",
-  },
-  searchInput: {
-    width: "300px",
-    padding: "10px",
-    fontSize: "1em",
-  },
-  content: {
-    padding: "20px",
-  },
-  overviewList: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  },
-  itemContainer: {
-    border: "1px solid #ddd",
-    borderRadius: "5px",
-    padding: "10px",
-    margin: "10px",
-    width: "300px",
-    textAlign: "center",
-  },
-  price: {
-    fontSize: "1.2em",
-    fontWeight: "bold",
-  },
-  bidContainer: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: "10px",
-  },
-  highestBid: {
-    marginLeft: "10px",
-  },
-  error: {
-    color: "red",
-  },
-  bidderInput: {
-    width: "100%",
-    padding: "10px",
-    margin: "5px 0",
-  },
-  bidInput: {
-    width: "100%",
-    padding: "10px",
-    margin: "5px 0",
-  },
 };
+
+export default MainPage;

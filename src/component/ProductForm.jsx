@@ -1,379 +1,386 @@
 import { useState, useEffect } from "react";
-import { initializeApp, getApps } from "firebase/app";
+import Modal from "react-modal";
 import {
-  getFirestore,
   collection,
   addDoc,
-  deleteDoc,
-  serverTimestamp,
   getDocs,
+  deleteDoc,
   doc,
-} from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+} from "firebase/firestore"; // Firestoreの関数をインポート
+import firebase from "firebase/compat/app"; // Firebaseの初期化
+import "firebase/compat/storage"; // Firebase Storageのインポート
 
 const firebaseConfig = {
-  // Firebaseの設定
+  apiKey: "AIzaSyC_6lYWBKG7lsAWlgfitLXok5e8ieBq9wc",
+  authDomain: "first-market-b1776.firebaseapp.com",
+  projectId: "first-market-b1776",
+  storageBucket: "first-market-b1776.appspot.com",
+  messagingSenderId: "998971297784",
+  appId: "1:998971297784:web:7f5730552405ea70d2900d",
+  measurementId: "G-41PT8907YH",
 };
 
-let app;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
 }
 
-const db = getFirestore(app);
-const storage = getStorage(app);
+// モーダルのスタイル
+const modalStyles = {
+  overlay: {
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  content: {
+    top: "50%",
+    left: "50%",
+    right: "auto",
+    bottom: "auto",
+    transform: "translate(-50%, -50%)",
+    padding: "20px",
+    borderRadius: "8px",
+    background: "#fff",
+    width: "200px", // モーダルの幅を調整
+  },
+};
 
+// コンポーネント
 const ProductForm = () => {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [sellerName, setSellerName] = useState("");
-  const [productName, setProductName] = useState("");
-  const [productDescription, setProductDescription] = useState("");
-  const [productPrice, setProductPrice] = useState("");
-  const [productImage, setProductImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: "", isError: false });
   const [products, setProducts] = useState([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState({
+    id: "",
+    productName: "",
+    productDescription: "",
+    imageUrl: "",
+    productPrice: "",
+  });
+  const [imageFile, setImageFile] = useState(null); // 追加: 画像ファイルの状態
+  const [imagePreview, setImagePreview] = useState(""); // 画像プレビューの状態
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // 削除モーダルの状態
+  const [productToDelete, setProductToDelete] = useState(null); // 削除する商品の情報
 
+  // 商品を取得する関数
+  const fetchProducts = async () => {
+    const querySnapshot = await getDocs(collection("products")); // Firestoreの"products"コレクションからデータを取得
+    const productsData = querySnapshot.docs.map((doc) => ({
+      id: doc.id, // FirestoreのIDを使用
+      ...doc.data(),
+    }));
+    setProducts(productsData);
+  };
+
+  // コンポーネントのマウント時に商品データを取得
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "products"));
-        const productList = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setProducts(productList);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-      }
-    };
-
     fetchProducts();
   }, []);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.size > 5 * 1024 * 1024) {
-      setMessage({
-        text: "画像サイズは5MB以下にしてください。",
-        isError: true,
-      });
-      return;
-    }
-
-    setProductImage(file);
-
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setImagePreview("");
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage({ text: "", isError: false });
 
+    if (
+      !currentProduct.productName ||
+      !currentProduct.productDescription ||
+      !currentProduct.productPrice
+    ) {
+      alert("全部埋めてね！");
+      return;
+    }
     try {
-      if (
-        !productName.trim() ||
-        !productDescription.trim() ||
-        !productPrice ||
-        !productImage
-      ) {
-        throw new Error("すべての項目を入力してください。");
-      }
-
-      const storageRef = ref(
-        storage,
-        `product-images/${Date.now()}-${productImage.name}`
-      );
-
-      const uploadResult = await uploadBytes(storageRef, productImage);
-      const imageUrl = await getDownloadURL(uploadResult.ref);
-
-      const productData = {
-        sellerName: sellerName.trim(),
-        productName: productName.trim(),
-        productDescription: productDescription.trim(),
-        productPrice: parseFloat(productPrice),
-        imageUrl,
-        createdAt: serverTimestamp(),
-        status: "active",
+      const newProduct = {
+        productName: currentProduct.productName,
+        productDescription: currentProduct.productDescription,
+        imageUrl: imageFile
+          ? await uploadImage(imageFile)
+          : currentProduct.imageUrl,
+        productPrice: currentProduct.productPrice,
       };
 
-      const docRef = await addDoc(collection(db, "products"), productData);
+      if (isEditMode) {
+        await deleteDoc(doc("products", currentProduct.id)); // 古いデータを削除
+      }
 
-      setMessage({
-        text: `商品が正常にアップロードされました！（ID: ${docRef.id}）`,
-        isError: false,
-      });
-
-      setProducts((prevProducts) => [
-        ...prevProducts,
-        { ...productData, id: docRef.id },
-      ]);
-
-      setSellerName("");
-      setProductName("");
-      setProductDescription("");
-      setProductPrice("");
-      setProductImage(null);
-      setImagePreview("");
-      setIsFormOpen(false);
+      await addDoc(collection("products"), newProduct); // 新しい商品を追加
+      resetForm();
+      fetchProducts(); // 商品リストを再取得
     } catch (error) {
-      console.error("Error:", error);
-      setMessage({
-        text: `エラーが発生しました: ${error.message}`,
-        isError: true,
-      });
-    } finally {
-      setLoading(false);
+      console.error("エラーだよ！！！:", error);
+      alert("商品を出品できなかったよ...");
     }
   };
 
-  const deleteProduct = async (productId) => {
-    try {
-      await deleteDoc(doc(db, "products", productId));
-      setProducts((prevProducts) =>
-        prevProducts.filter((product) => product.id !== productId)
-      );
-      setMessage({ text: "商品が正常に削除されました。", isError: false });
-    } catch (error) {
-      console.error("Error deleting product:", error);
-      setMessage({
-        text: `エラーが発生しました: ${error.message}`,
-        isError: true,
-      });
+  // 画像をFirebase Storageにアップロードする関数
+  const uploadImage = async (file) => {
+    const storageRef = firebase.storage().ref(); // Firebase Storageの参照を取得
+    const imageRef = storageRef.child(`images/${file.name}`); // 画像のパスを指定
+    await imageRef.put(file); // 画像をアップロード
+    return await imageRef.getDownloadURL(); // アップロードした画像のURLを取得
+  };
+
+  // モーダルを開く
+  const handleOpenModal = (product) => {
+    setCurrentProduct(product);
+    setImageFile(null); // 画像をリセット
+    setImagePreview(""); // プレビューをリセット
+    setIsEditMode(true);
+    setIsFormOpen(true);
+  };
+
+  // 商品を削除する
+  const handleDeleteProduct = async () => {
+    if (productToDelete) {
+      await deleteDoc(doc("products", productToDelete)); // Firestoreから商品を削除
+      setIsDeleteModalOpen(false); // 削除モーダルを閉じる
+      fetchProducts(); // 商品リストを再取得
+    }
+  };
+
+  // 削除モーダルを開く
+  const openDeleteModal = (id) => {
+    setProductToDelete(id); // 削除する商品IDをセット
+    setIsDeleteModalOpen(true); // モーダルを開く
+  };
+
+  // フォームをリセットする
+  const resetForm = () => {
+    setCurrentProduct({
+      id: "",
+      productName: "",
+      productDescription: "",
+      imageUrl: "",
+      productPrice: "",
+    });
+    setImageFile(null); // 追加: 画像ファイルのリセット
+    setImagePreview(""); // プレビューもリセット
+    setIsEditMode(false);
+    setIsFormOpen(false);
+  };
+
+  // 戻るボタンの動作
+  const handleBack = () => {
+    resetForm(); // フォームをリセット
+  };
+
+  // 画像選択時の処理
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file)); // プレビュー用URLを生成
     }
   };
 
   const styles = {
-    container: {
-      maxWidth: "600px",
-      margin: "0 auto",
-      padding: "20px",
-      backgroundColor: "#ffffff",
-      borderRadius: "8px",
-      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-      fontFamily: "Arial, sans-serif",
-    },
+    title: { textAlign: "center", marginBottom: "20px", fontSize: "2rem" },
+    centeredButton: { textAlign: "center", marginBottom: "20px" },
     button: {
-      width: "100%",
-      backgroundColor: "#007bff",
+      backgroundColor: "#28a745",
       color: "#fff",
-      fontWeight: "bold",
-      padding: "10px",
       border: "none",
-      borderRadius: "5px",
+      padding: "10px 20px",
       cursor: "pointer",
+      borderRadius: "5px",
       transition: "background-color 0.3s",
+      marginRight: "10px", // ボタン間に余白を追加
     },
-    buttonHover: {
-      backgroundColor: "#0056b3",
-    },
-    form: {
-      display: isFormOpen ? "block" : "none",
-      marginTop: "20px",
-    },
-    inputGroup: {
+    modalTitle: {
+      textAlign: "center",
+      fontSize: "1.5rem",
       marginBottom: "15px",
     },
-    inputLabel: {
-      display: "block",
-      marginBottom: "5px",
-      fontWeight: "bold",
+    form: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
     },
     input: {
-      width: "100%",
       padding: "10px",
-      borderRadius: "4px",
       border: "1px solid #ccc",
-      fontSize: "16px",
+      borderRadius: "5px",
+      fontSize: "1rem",
     },
-    textarea: {
-      width: "100%",
-      padding: "10px",
-      borderRadius: "4px",
-      border: "1px solid #ccc",
-      fontSize: "16px",
-      resize: "vertical",
-    },
-    imagePreview: {
-      marginTop: "10px",
-      width: "100%",
-      maxWidth: "200px",
-      borderRadius: "4px",
-      objectFit: "cover",
-    },
-    message: {
-      marginTop: "10px",
-      padding: "10px",
-      borderRadius: "4px",
-    },
-    errorMessage: {
-      backgroundColor: "#f8d7da",
-      color: "#721c24",
-    },
-    successMessage: {
-      backgroundColor: "#d4edda",
-      color: "#155724",
+    productListTitle: {
+      textAlign: "center",
+      margin: "20px 0",
+      fontSize: "1.5rem",
     },
     productList: {
-      marginTop: "20px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
     },
     productItem: {
+      border: "1px solid #ccc",
+      borderRadius: "8px",
       padding: "10px",
-      borderBottom: "1px solid #ccc",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
+      marginBottom: "15px",
+      width: "300px",
+      textAlign: "center",
+      backgroundColor: "#f9f9f9",
+      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
     },
     productImage: {
-      width: "100px",
-      height: "100px",
-      objectFit: "cover",
-      borderRadius: "4px",
+      maxWidth: "100%",
+      height: "auto",
+      marginBottom: "10px",
+    },
+    editButton: {
+      backgroundColor: "#007bff",
+      color: "#fff",
+      border: "none",
+      padding: "5px 10px",
+      margin: "5px",
+      cursor: "pointer",
+      borderRadius: "5px",
+      transition: "background-color 0.3s",
+    },
+    deleteButton: {
+      backgroundColor: "#dc3545",
+      color: "#fff",
+      border: "none",
+      padding: "5px 10px",
+      margin: "5px",
+      cursor: "pointer",
+      borderRadius: "5px",
+      transition: "background-color 0.3s",
+    },
+    deleteModalContent: {
+      textAlign: "center",
     },
   };
 
   return (
-    <div style={styles.container}>
-      <button
-        onClick={() => setIsFormOpen(!isFormOpen)}
-        style={styles.button}
-        onMouseOver={(e) =>
-          (e.currentTarget.style.backgroundColor =
-            styles.buttonHover.backgroundColor)
-        }
-        onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#007bff")}
-      >
-        {isFormOpen ? "フォームを閉じる" : "商品を出品する"}
-      </button>
-
-      <div style={styles.form}>
-        <h2>商品出品フォーム</h2>
-
-        <form onSubmit={handleSubmit}>
-          <div style={styles.inputGroup}>
-            <label style={styles.inputLabel}>出品者名</label>
-            <input
-              type="text"
-              value={sellerName}
-              onChange={(e) => setSellerName(e.target.value)}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.inputLabel}>商品名</label>
-            <input
-              type="text"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.inputLabel}>商品画像</label>
-            <input
-              type="file"
-              onChange={handleImageChange}
-              accept="image/*"
-              required
-            />
-            {imagePreview && (
-              <img
-                src={imagePreview}
-                alt="Preview"
-                style={styles.imagePreview}
-              />
-            )}
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.inputLabel}>商品説明</label>
-            <textarea
-              value={productDescription}
-              onChange={(e) => setProductDescription(e.target.value)}
-              style={styles.textarea}
-              required
-            />
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.inputLabel}>希望価格 (円)</label>
-            <input
-              type="number"
-              value={productPrice}
-              onChange={(e) => setProductPrice(e.target.value)}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <button type="submit" style={styles.button}>
-            {loading ? "アップロード中..." : "出品する"}
-          </button>
-        </form>
-
-        {message.text && (
-          <div
-            style={{
-              ...styles.message,
-              ...(message.isError
-                ? styles.errorMessage
-                : styles.successMessage),
-            }}
-          >
-            {message.text}
-          </div>
-        )}
+    <>
+      <div style={styles.centeredButton}>
+        <button
+          onClick={handleOpenModal}
+          style={{ backgroundColor: "blue", color: "white" }}
+        >
+          出品する
+        </button>
       </div>
 
+      <Modal isOpen={isFormOpen} onRequestClose={resetForm} style={modalStyles}>
+        <h2 style={styles.modalTitle}>
+          {isEditMode ? "商品を編集" : "商品を出品"}
+        </h2>
+        <form style={styles.form} onSubmit={handleSubmit}>
+          <input
+            type="text"
+            placeholder="商品名"
+            value={currentProduct.productName}
+            onChange={(e) =>
+              setCurrentProduct({
+                ...currentProduct,
+                productName: e.target.value,
+              })
+            }
+            style={styles.input}
+            required
+          />
+          <input
+            type="text"
+            placeholder="商品説明"
+            value={currentProduct.productDescription}
+            onChange={(e) =>
+              setCurrentProduct({
+                ...currentProduct,
+                productDescription: e.target.value,
+              })
+            }
+            style={styles.input}
+            required
+          />
+          <input
+            type="number"
+            placeholder="価格"
+            value={currentProduct.productPrice}
+            onChange={(e) =>
+              setCurrentProduct({
+                ...currentProduct,
+                productPrice: e.target.value,
+              })
+            }
+            style={styles.input}
+            required
+          />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            style={styles.input}
+          />
+          {imagePreview && (
+            <img
+              src={imagePreview}
+              alt="プレビュー"
+              style={styles.productImage}
+            />
+          )}
+          <input type="text" placeholder="出品者名" style={styles.input} />
+          <div style={styles.centeredButton}>
+            <button type="submit" style={styles.button}>
+              {isEditMode ? "更新" : "出品"}
+            </button>
+            <button onClick={handleBack} style={styles.button}>
+              戻る
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 商品リスト */}
+      <h2 style={styles.productListTitle}>出品された商品</h2>
       <div style={styles.productList}>
-        <h2>出品された商品</h2>
-        {products.length > 0 ? (
-          products.map((product) => (
-            <div key={product.id} style={styles.productItem}>
-              <img
-                src={product.imageUrl}
-                alt={product.productName}
-                style={styles.productImage}
-              />
-              <div>
-                <h3>{product.productName}</h3>
-                <p>{product.productDescription}</p>
-                <p>価格: {product.productPrice} 円</p>
-              </div>
+        {products.map((product) => (
+          <div key={product.id} style={styles.productItem}>
+            <img
+              src={product.imageUrl}
+              alt={product.productName}
+              style={styles.productImage}
+            />
+            <h3>{product.productName}</h3>
+            <p>{product.productDescription}</p>
+            <p>価格: ¥{product.productPrice}</p>
+            <div>
               <button
-                onClick={() => deleteProduct(product.id)}
-                style={{
-                  ...styles.button,
-                  backgroundColor: "#dc3545",
-                  width: "25%",
-                }}
+                onClick={() => handleOpenModal(product)}
+                style={styles.editButton}
+              >
+                編集
+              </button>
+              <button
+                onClick={() => openDeleteModal(product.id)}
+                style={styles.deleteButton}
               >
                 削除
               </button>
             </div>
-          ))
-        ) : (
-          <p>出品された商品はありません。</p>
-        )}
+          </div>
+        ))}
       </div>
-    </div>
+
+      {/* 削除モーダル */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onRequestClose={() => setIsDeleteModalOpen(false)}
+        style={modalStyles}
+      >
+        <div style={styles.deleteModalContent}>
+          <h2>この商品を削除しますか？</h2>
+          <div style={styles.centeredButton}>
+            <button onClick={handleDeleteProduct} style={styles.deleteButton}>
+              削除する
+            </button>
+            <button
+              onClick={() => setIsDeleteModalOpen(false)}
+              style={styles.button}
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 };
 

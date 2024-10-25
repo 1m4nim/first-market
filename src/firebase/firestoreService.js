@@ -13,11 +13,11 @@ const FirestoreService = () => {
     const updateData = async () => {
         try {
             await updateDoc(docRef, {
-                出品者名: "出品者の名前",
                 商品名: "商品の名前",
-                商品画像: "商品の画像URL",
                 商品説明: "商品の説明",
-                価格: price // フォームから取得した価格を使用
+                商品画像: "商品の画像URL",
+                価格: price, // フォームから取得した価格を使用
+                出品者名: "出品者の名前",
             });
             console.log("Document successfully updated!");
         } catch (error) {
