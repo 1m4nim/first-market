@@ -134,6 +134,9 @@ const MainPage = () => {
           皆さんにとって一番目の選択肢がこの市場になりますように
         </p>
       </header>
+      <p style={{ textAlign: "center" }}>
+        入札するときは検索をかけて入札してね↓
+      </p>
       <input
         type="text"
         placeholder="商品名で検索"
