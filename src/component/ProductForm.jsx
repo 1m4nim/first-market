@@ -393,6 +393,8 @@ const ProductForm = () => {
             <p>{product.productDescription}</p>
             <p>価格: ¥{product.productPrice}</p>
             <p>出品者: {product.sellerName}</p>
+            <p>最高入札者: {product.highestBidder || "なし"}</p>
+            <p>最高入札額: {product.highestBid || "なし"}円</p>{" "}
             {product.imageUrl && (
               <img
                 src={product.imageUrl}
@@ -400,7 +402,6 @@ const ProductForm = () => {
                 style={styles.productImage}
               />
             )}
-
             <button
               style={{ ...styles.button, ...styles.deleteButton }}
               onClick={() => confirmDeleteProduct(product)}
