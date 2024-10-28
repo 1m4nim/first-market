@@ -1,5 +1,5 @@
 // firebase-client.js
-import { db } from "./firebase-config"; // Firestoreのインスタンスをインポート
+import { db } from "./firebaseConfig"; // Firestoreのインスタンスをインポート
 import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
 
 // 商品データを取得する関数
