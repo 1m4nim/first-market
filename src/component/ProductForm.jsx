@@ -8,7 +8,6 @@ import {
   serverTimestamp,
   getDocs,
   doc,
-  docRef,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -179,8 +178,6 @@ const ProductForm = () => {
     setProductImage(null); // 画像を保持
     setIsFormOpen(true);
   };
-
-  console.log(handleEdit);
 
   const resetForm = () => {
     setEditingProduct(null);
@@ -424,7 +421,7 @@ const ProductForm = () => {
               」を削除してもよろしいですか？
             </p>
             <button
-              style={{ backgroundColor: "red", color: "white" }}
+              style={styles.button}
               onClick={() => deleteProduct(productToDelete.id)}
             >
               削除

@@ -7,6 +7,7 @@ import {
   updateDoc,
   deleteDoc,
 } from "firebase/firestore";
+import ProductForm from "./ProductForm";
 
 const MainPage = () => {
   const [products, setProducts] = useState([]); // 商品データを管理
@@ -133,169 +134,142 @@ const MainPage = () => {
           皆さんにとって一番目の選択肢がこの市場になりますように
         </p>
       </header>
-
-      {/* 固定された検索バー */}
       <input
         type="text"
         placeholder="商品名で検索"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         style={{
-          position: "fixed",
-          top: "0", // 画面の上部に固定
-          left: "50%",
-          transform: "translateX(-50%)", // 中央に配置
           width: "300px",
           height: "52px",
-          margin: "10px 0", // 上下のマージン
-          zIndex: 10, // 他の要素の上に表示
-          backgroundColor: "white", // 背景色
-          boxShadow: "0 2px 5px rgba(0,0,0,0.3)", // シャドウを追加
+          margin: "20px auto",
+          display: "block",
         }}
       />
-
-      <div style={{ marginTop: "70px" }}>
-        {" "}
-        {/* 検索バーの下にスペースを作る */}
-        {searchQuery && (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            {filteredProducts.map((product) => (
+      {searchQuery && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
+          {filteredProducts.map((product) => (
+            <div
+              key={product.id}
+              style={{
+                border: "1px solid #ccc",
+                borderRadius: "8px",
+                padding: "20px",
+                margin: "10px",
+                width: "200px",
+                textAlign: "center",
+              }}
+            >
+              <img
+                src={product.imageUrl}
+                alt={product.productName}
+                style={{ width: "100px", height: "auto" }}
+              />
+              <h2>{product.productName}</h2>
+              <p>出品者: {product.sellerName}</p>
+              <p>価格: {product.productPrice}円</p>
+              <p>最高入札者: {product.highestBidder || "なし"}</p>
+              <p>最高入札額: {product.highestBid || "なし"}円</p>
+              {/* 入札者名と入札金額の入力 */}
+              <input
+                type="text"
+                placeholder="入札者名"
+                value={bidderData[product.id]?.name || ""}
+                onChange={(e) =>
+                  handleBidderChange(product.id, "name", e.target.value)
+                }
+                style={{ margin: "5px", width: "90%", fontSize: "24px" }}
+              />
+              <input
+                type="number"
+                placeholder="入札金額"
+                value={bidderData[product.id]?.price || ""}
+                onChange={(e) =>
+                  handleBidderChange(product.id, "price", e.target.value)
+                }
+                style={{ margin: "5px", width: "90%", fontSize: "24px" }}
+              />
               <div
-                key={product.id}
                 style={{
-                  border: "1px solid #ccc",
-                  borderRadius: "8px",
-                  padding: "20px",
-                  margin: "10px",
-                  width: "200px",
-                  textAlign: "center",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginTop: "10px",
                 }}
               >
-                <img
-                  src={product.imageUrl}
-                  alt={product.productName}
-                  style={{ width: "100px", height: "auto" }}
-                />
-                <h2>{product.productName}</h2>
-                <p>出品者: {product.sellerName}</p>
-                <p>価格: {product.productPrice}円</p>
-                <p>最高入札者: {product.highestBidder || "なし"}</p>
-                <p>最高入札額: {product.highestBid || "なし"}円</p>
-                {/* 入札者名と入札金額の入力 */}
-                <input
-                  type="text"
-                  placeholder="入札者名"
-                  value={bidderData[product.id]?.name || ""}
-                  onChange={(e) =>
-                    handleBidderChange(product.id, "name", e.target.value)
-                  }
-                  style={{ margin: "5px", width: "90%", fontSize: "24px" }}
-                />
-                <input
-                  type="number"
-                  placeholder="入札金額"
-                  value={bidderData[product.id]?.price || ""}
-                  onChange={(e) =>
-                    handleBidderChange(product.id, "price", e.target.value)
-                  }
-                  style={{ margin: "5px", width: "90%", fontSize: "24px" }}
-                />
-                <div
+                <button
+                  onClick={() => handleBid(product.id, product.productPrice)}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginTop: "10px",
+                    backgroundColor: "#754f6e",
+                    color: "white",
+                    padding: "10px",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    marginRight: "5px",
+                    flex: "1",
                   }}
                 >
-                  <button
-                    onClick={() => handleBid(product.id, product.productPrice)}
-                    style={{
-                      backgroundColor: "#754f6e",
-                      color: "white",
-                      padding: "10px",
-                      borderRadius: "5px",
-                      cursor: "pointer",
-                      marginRight: "5px",
-                      flex: "1",
-                    }}
-                  >
-                    入札する
-                  </button>
-                  {/* 削除ボタン */}
-                  <button
-                    onClick={() => openDeleteModal(product)}
-                    style={{
-                      backgroundColor: "red",
-                      color: "white",
-                      padding: "10px",
-                      borderRadius: "5px",
-                      cursor: "pointer",
-                      marginLeft: "5px",
-                      flex: "1",
-                    }}
-                  >
-                    削除
-                  </button>
-                </div>
+                  入札する
+                </button>
+                {/* 削除ボタン */}
+                <button
+                  onClick={() => openDeleteModal(product)}
+                  style={{
+                    backgroundColor: "red",
+                    color: "white",
+                    padding: "10px",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    marginLeft: "5px",
+                    flex: "1",
+                  }}
+                >
+                  削除
+                </button>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 削除確認モーダル */}
+            </div>
+          ))}
+        </div>
+      )}
+      {/* 削除モーダル */}
       {isDeleteModalOpen && (
         <div
           style={{
             position: "fixed",
-            top: "0",
-            left: "0",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0,0,0,0.5)",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 100,
           }}
         >
           <div
             style={{
-              backgroundColor: "white",
+              background: "white",
               padding: "20px",
               borderRadius: "8px",
               textAlign: "center",
             }}
           >
-            <h2>削除確認</h2>
             <p>本当にこの商品を削除しますか？</p>
-            <button
-              onClick={handleDelete}
-              style={{
-                backgroundColor: "red",
-                color: "white",
-                padding: "10px 20px",
-                borderRadius: "5px",
-                marginRight: "10px",
-              }}
-            >
+            <button onClick={handleDelete} style={{ margin: "5px" }}>
               はい
             </button>
-            <button
-              onClick={closeDeleteModal}
-              style={{ padding: "10px 20px", borderRadius: "5px" }}
-            >
+            <button onClick={closeDeleteModal} style={{ margin: "5px" }}>
               いいえ
             </button>
           </div>
         </div>
       )}
+      <ProductForm fetchProducts={fetchProducts} />
     </div>
   );
 };
