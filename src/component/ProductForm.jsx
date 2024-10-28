@@ -180,6 +180,8 @@ const ProductForm = () => {
     setIsFormOpen(true);
   };
 
+  console.log(handleEdit);
+
   const resetForm = () => {
     setEditingProduct(null);
     setSellerName("");
@@ -422,7 +424,7 @@ const ProductForm = () => {
               」を削除してもよろしいですか？
             </p>
             <button
-              style={styles.button}
+              style={{ backgroundColor: "red", color: "white" }}
               onClick={() => deleteProduct(productToDelete.id)}
             >
               削除
