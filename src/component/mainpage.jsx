@@ -25,7 +25,14 @@ const MainPage = () => {
       ...doc.data(),
     }));
     setProducts(productsData);
-    setFilteredProducts(productsData);
+    updateFilteredProducts(productsData);
+  };
+
+  const updateFilteredProducts = (productList) => {
+    const filtered = productList.filter((item) =>
+      item.productName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredProducts(filtered);
   };
 
   useEffect(() => {
@@ -34,10 +41,7 @@ const MainPage = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      const filtered = products.filter((item) =>
-        item.productName.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredProducts(filtered);
+      updateFilteredProducts(products);
     }, 300);
     return () => {
       clearTimeout(handler);
