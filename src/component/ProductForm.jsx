@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   getDocs,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -45,6 +46,7 @@ const ProductForm = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [showBitModl, setBitModal] = useState(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -195,17 +197,89 @@ const ProductForm = () => {
     setShowDeleteModal(true);
   };
 
+  const handleBidderChange = (productId, field, value) => {
+    setBidderData((prev) => ({
+      ...prev,
+      [productId]: { ...prev[productId], [field]: value },
+    }));
+  };
+  const [filteredProducts, setFilteredProducts] = useState([]); // フィルタリングされた商品データ
+  const [bidderData, setBidderData] = useState({}); // 各商品の入札者名と入札金額を管理
+
+  const fetchProducts = async () => {
+    const db = getFirestore();
+    const querySnapshot = await getDocs(collection(db, "products")); // Firestoreの"products"コレクションからデータを取得
+    const productsData = querySnapshot.docs.map((doc) => ({
+      id: doc.id, // FirestoreのIDを使用
+      ...doc.data(), // 商品データを取得
+    }));
+    setProducts(productsData); // 取得した商品データをセット
+    setFilteredProducts(productsData); // フィルタリングされた商品データを初期化
+  };
+
+  const handleBid = async (productId, currentPrice) => {
+    const { name, price } = bidderData[productId] || {};
+    if (!name || !price) {
+      alert("入札者名と入札金額を入力してください。");
+      return;
+    } // 入札金額が現在の価格より高いか確認
+    if (parseInt(price, 10) <= currentPrice) {
+      alert(
+        `入札金額は現在の価格より高く設定してください。現在の価格: ${currentPrice}円`
+      );
+      return;
+    }
+    const db = getFirestore();
+    const productRef = doc(db, "products", productId);
+    // Firestoreに入札者名と入札金額を更新
+    await updateDoc(productRef, {
+      highestBidder: name,
+      highestBid: parseInt(price, 10),
+    });
+    fetchProducts(); // 更新後にリストを再取得
+    setBidderData((prev) => ({
+      ...prev,
+      [productId]: { name: "", price: "" },
+    })); // 入札者データをクリア
+  };
+
   const styles = {
+    backgroundColor: "#75bf8e",
+
     container: {
       maxWidth: "600px",
       margin: "0 auto",
       padding: "20px",
-      backgroundColor: "#ffffff",
+      backgroundColor: "#d1edda",
       borderRadius: "8px",
       boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
       fontFamily: "Arial, sans-serif",
     },
     button: {
+      width: "100%",
+      backgroundColor: "#007bff",
+      color: "#fff",
+      fontWeight: "bold",
+      padding: "10px",
+      border: "none",
+      borderRadius: "5px",
+      cursor: "pointer",
+      transition: "background-color 0.3s",
+    },
+
+    button1: {
+      width: "100%",
+      backgroundColor: "red",
+      color: "white",
+      fontWeight: "bold",
+      padding: "10px",
+      border: "none",
+      borderRadius: "5px",
+      cursor: "pointer",
+      transition: "background-color 0.3s",
+    },
+
+    button2: {
       width: "100%",
       backgroundColor: "#007bff",
       color: "#fff",
@@ -278,7 +352,7 @@ const ProductForm = () => {
       padding: "15px",
       border: "1px solid #ccc",
       borderRadius: "5px",
-      backgroundColor: "#f9f9f9",
+      backgroundColor: "#f2e8c2",
     },
     deleteButton: {
       backgroundColor: "#dc3545",
@@ -303,14 +377,26 @@ const ProductForm = () => {
       borderRadius: "8px",
       boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
     },
+    input2: {
+      fontSize: "24px",
+      width: "80%",
+    },
   };
 
   return (
     <div style={styles.container}>
       <h2>商品出品フォーム</h2>
-      <button style={styles.button} onClick={() => setIsFormOpen(!isFormOpen)}>
+      <button
+        style={{
+          ...styles.button,
+          backgroundColor: isFormOpen ? "#edeb8a" : "blue",
+          color: isFormOpen ? "black" : "white", // フォームを閉じるときだけ黄色にする
+        }}
+        onClick={() => setIsFormOpen(!isFormOpen)}
+      >
         {isFormOpen ? "フォームを閉じる" : "出品する"}
       </button>
+
       {isFormOpen && (
         <form style={styles.form} onSubmit={handleSubmit}>
           <div style={styles.inputGroup}>
@@ -408,6 +494,30 @@ const ProductForm = () => {
             >
               削除
             </button>
+            <input
+              type="text"
+              placeholder="入札者名"
+              value={bidderData[product.id]?.name || ""}
+              onChange={(e) =>
+                handleBidderChange(product.id, "name", e.target.value)
+              }
+              style={{ ...styles.input2, marginRight: "10px" }}
+            />
+            <input
+              type="number"
+              placeholder="入札金額"
+              value={bidderData[product.id]?.price || ""}
+              onChange={(e) =>
+                handleBidderChange(product.id, "price", e.target.value)
+              }
+              style={{ ...styles.input2, marginRight: "10px" }}
+            />
+            <button
+              onClick={() => handleBid(product.id, product.productPrice)}
+              style={{ ...styles.button, marginTop: "10px" }}
+            >
+              入札
+            </button>
           </li>
         ))}
       </ul>
@@ -421,13 +531,13 @@ const ProductForm = () => {
               」を削除してもよろしいですか？
             </p>
             <button
-              style={styles.button}
+              style={styles.button1}
               onClick={() => deleteProduct(productToDelete.id)}
             >
               削除
             </button>
             <button
-              style={styles.button}
+              style={styles.button2}
               onClick={() => setShowDeleteModal(false)}
             >
               キャンセル

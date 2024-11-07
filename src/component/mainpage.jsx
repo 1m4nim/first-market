@@ -10,31 +10,28 @@ import {
 import ProductForm from "./ProductForm";
 
 const MainPage = () => {
-  const [products, setProducts] = useState([]); // 商品データを管理
-  const [filteredProducts, setFilteredProducts] = useState([]); // フィルタリングされた商品データ
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [bidderData, setBidderData] = useState({}); // 各商品の入札者名と入札金額を管理
+  const [bidderData, setBidderData] = useState({});
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null); // 商品を取得する関数
+  const [productToDelete, setProductToDelete] = useState(null);
 
-  // 商品データを取得する関数
   const fetchProducts = async () => {
     const db = getFirestore();
-    const querySnapshot = await getDocs(collection(db, "products")); // Firestoreの"products"コレクションからデータを取得
+    const querySnapshot = await getDocs(collection(db, "products"));
     const productsData = querySnapshot.docs.map((doc) => ({
-      id: doc.id, // FirestoreのIDを使用
-      ...doc.data(), // 商品データを取得
+      id: doc.id,
+      ...doc.data(),
     }));
-    setProducts(productsData); // 取得した商品データをセット
-    setFilteredProducts(productsData); // フィルタリングされた商品データを初期化
+    setProducts(productsData);
+    setFilteredProducts(productsData);
   };
 
-  // 商品データの取得
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  // 検索クエリによるフィルタリング
   useEffect(() => {
     const handler = setTimeout(() => {
       const filtered = products.filter((item) =>
@@ -49,50 +46,53 @@ const MainPage = () => {
 
   const handleBid = async (productId, currentPrice) => {
     const { name, price } = bidderData[productId] || {};
+
     if (!name || !price) {
       alert("入札者名と入札金額を入力してください。");
       return;
-    } // 入札金額が現在の価格より高いか確認
-    if (parseInt(price, 10) <= currentPrice) {
+    }
+
+    const bidPrice = parseInt(price, 10);
+    if (bidPrice <= currentPrice) {
       alert(
         `入札金額は現在の価格より高く設定してください。現在の価格: ${currentPrice}円`
       );
       return;
     }
+
     const db = getFirestore();
     const productRef = doc(db, "products", productId);
-    // Firestoreに入札者名と入札金額を更新
+
     await updateDoc(productRef, {
       highestBidder: name,
-      highestBid: parseInt(price, 10),
+      highestBid: bidPrice,
     });
-    fetchProducts(); // 更新後にリストを再取得
+
+    fetchProducts();
+
     setBidderData((prev) => ({
       ...prev,
       [productId]: { name: "", price: "" },
-    })); // 入札者データをクリア
+    }));
   };
 
-  // 削除モーダルを開く関数
   const openDeleteModal = (product) => {
     setProductToDelete(product);
     setIsDeleteModalOpen(true);
   };
 
-  // 削除モーダルを閉じる関数
   const closeDeleteModal = () => {
     setIsDeleteModalOpen(false);
     setProductToDelete(null);
   };
 
-  // 削除処理
   const handleDelete = async () => {
     if (productToDelete) {
       const db = getFirestore();
       const productRef = doc(db, "products", productToDelete.id);
-      await deleteDoc(productRef); // Firestoreから商品を削除
-      fetchProducts(); // 商品リストを再取得
-      closeDeleteModal(); // モーダルを閉じる
+      await deleteDoc(productRef);
+      fetchProducts();
+      closeDeleteModal();
     }
   };
 
@@ -134,9 +134,9 @@ const MainPage = () => {
           皆さんにとって一番目の選択肢がこの市場になりますように
         </p>
       </header>
-      <p style={{ textAlign: "center" }}>
+      {/* <p style={{ textAlign: "center" }}>
         入札するときは検索をかけて入札してね↓
-      </p>
+      </p> */}
       <input
         type="text"
         placeholder="商品名で検索"
@@ -263,10 +263,20 @@ const MainPage = () => {
             }}
           >
             <p>本当にこの商品を削除しますか？</p>
-            <button onClick={handleDelete} style={{ margin: "5px" }}>
+            <button
+              onClick={handleDelete}
+              style={{ margin: "5px", backgroundColor: "red", color: "white" }}
+            >
               はい
             </button>
-            <button onClick={closeDeleteModal} style={{ margin: "5px" }}>
+            <button
+              onClick={closeDeleteModal}
+              style={{
+                margin: "5px",
+                backgroundColor: "#007BFF",
+                color: "white",
+              }}
+            >
               いいえ
             </button>
           </div>
