@@ -353,6 +353,7 @@ const ProductForm = () => {
       border: "1px solid #ccc",
       borderRadius: "5px",
       backgroundColor: "#f2e8c2",
+      color: "black",
     },
     deleteButton: {
       backgroundColor: "#dc3545",
