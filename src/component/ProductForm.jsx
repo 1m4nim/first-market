@@ -244,8 +244,6 @@ const ProductForm = () => {
   };
 
   const styles = {
-    backgroundColor: "#75bf8e",
-
     container: {
       maxWidth: "600px",
       margin: "0 auto",
@@ -356,6 +354,7 @@ const ProductForm = () => {
     },
     deleteButton: {
       backgroundColor: "#dc3545",
+      marginTop: "20px",
     },
     modal: {
       display: showDeleteModal ? "block" : "none",
@@ -489,10 +488,10 @@ const ProductForm = () => {
               />
             )}
             <button
-              style={{ ...styles.button, ...styles.deleteButton }}
-              onClick={() => confirmDeleteProduct(product)}
+              onClick={() => handleBid(product.id, product.productPrice)}
+              style={{ ...styles.button, marginTop: "10px" }}
             >
-              削除
+              入札
             </button>
             <input
               type="text"
@@ -513,10 +512,10 @@ const ProductForm = () => {
               style={{ ...styles.input2, marginRight: "10px" }}
             />
             <button
-              onClick={() => handleBid(product.id, product.productPrice)}
-              style={{ ...styles.button, marginTop: "10px" }}
+              style={{ ...styles.button, ...styles.deleteButton }}
+              onClick={() => confirmDeleteProduct(product)}
             >
-              入札
+              削除
             </button>
           </li>
         ))}
