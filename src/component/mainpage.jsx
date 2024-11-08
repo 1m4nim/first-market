@@ -130,7 +130,7 @@ const MainPage = () => {
         <p
           style={{
             color: "black",
-            backgroundColor: "white",
+            backgroundColor: "#F2E8C2",
             fontSize: "24px",
             marginTop: "10px",
           }}
