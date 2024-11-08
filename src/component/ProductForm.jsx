@@ -294,11 +294,13 @@ const ProductForm = () => {
     },
     inputGroup: {
       marginBottom: "15px",
+      color: "black",
     },
     inputLabel: {
       display: "block",
       marginBottom: "5px",
       fontWeight: "bold",
+      color: "black",
     },
     input: {
       width: "100%",
@@ -384,7 +386,7 @@ const ProductForm = () => {
 
   return (
     <div style={styles.container}>
-      <h2>商品出品フォーム</h2>
+      <h2 style={{ color: "black" }}>商品出品フォーム</h2>
       <button
         style={{
           ...styles.button,
