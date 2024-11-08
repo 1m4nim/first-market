@@ -490,12 +490,6 @@ const ProductForm = () => {
                 style={styles.productImage}
               />
             )}
-            <button
-              onClick={() => handleBid(product.id, product.productPrice)}
-              style={{ ...styles.button, marginTop: "10px" }}
-            >
-              入札
-            </button>
             <input
               type="text"
               placeholder="入札者名"
@@ -515,6 +509,12 @@ const ProductForm = () => {
               style={{ ...styles.input2, marginRight: "10px" }}
             />
             <button
+              onClick={() => handleBid(product.id, product.productPrice)}
+              style={{ ...styles.button }}
+            >
+              入札
+            </button>
+            <button
               style={{ ...styles.button, ...styles.deleteButton }}
               onClick={() => confirmDeleteProduct(product)}
             >
@@ -528,7 +528,7 @@ const ProductForm = () => {
         <div style={styles.modal}>
           <div style={styles.modalContent}>
             <h4>削除確認</h4>
-            <p>
+            <p style={{ color: "red" }}>
               本当に「{productToDelete?.productName}
               」を削除してもよろしいですか？
             </p>
