@@ -135,7 +135,7 @@ const MainPage = () => {
             marginTop: "10px",
           }}
         >
-          皆さんにとって一番目の選択肢がこの市場になりますように
+          一番目の選択肢となる市場を目指して
         </p>
       </header>
       {/* <p style={{ textAlign: "center" }}>
