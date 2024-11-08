@@ -172,6 +172,7 @@ const MainPage = () => {
                 width: "200px",
                 textAlign: "center",
                 color: "black",
+                backgroundColor: "#F2E8C2",
               }}
             >
               <img
