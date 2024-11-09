@@ -48,7 +48,7 @@ const MainPage = () => {
     };
   }, [searchQuery, products]);
 
-  const handleBid = async (productId, currentPrice) => {
+  const handleBid = async (productId, currentPrice, highestBid) => {
     const { name, price } = bidderData[productId] || {};
 
     if (!name || !price) {
@@ -57,9 +57,19 @@ const MainPage = () => {
     }
 
     const bidPrice = parseInt(price, 10);
-    if (bidPrice <= currentPrice) {
+
+    // 入札金額が開始価格以上であることを確認
+    if (bidPrice < currentPrice) {
       alert(
-        `入札金額は現在の価格より高く設定してください。現在の価格: ${currentPrice}円`
+        `入札金額は開始価格（${currentPrice}円）以上である必要があります。`
+      );
+      return;
+    }
+
+    // 最高入札額が存在する場合、その金額より高いことを確認
+    if (highestBid && bidPrice <= highestBid) {
+      alert(
+        `入札金額は現在の最高入札額（${highestBid}円）より高く設定してください。`
       );
       return;
     }
@@ -138,9 +148,6 @@ const MainPage = () => {
           一番目の選択肢となる市場を目指して
         </p>
       </header>
-      {/* <p style={{ textAlign: "center" }}>
-        入札するときは検索をかけて入札してね↓
-      </p> */}
       <input
         type="text"
         placeholder="商品名で検索"
@@ -182,10 +189,13 @@ const MainPage = () => {
               />
               <h2>{product.productName}</h2>
               <p>出品者: {product.sellerName}</p>
-              <p>価格: {product.productPrice}円</p>
+              <p>開始価格: {product.productPrice}円</p>
               <p>最高入札者: {product.highestBidder || "なし"}</p>
               <p>最高入札額: {product.highestBid || "なし"}円</p>
-              {/* 入札者名と入札金額の入力 */}
+              <p>
+                現在の必要入札額:{" "}
+                {(product.highestBid || product.productPrice) + 1}円以上
+              </p>
               <input
                 type="text"
                 placeholder="入札者名"
@@ -212,7 +222,13 @@ const MainPage = () => {
                 }}
               >
                 <button
-                  onClick={() => handleBid(product.id, product.productPrice)}
+                  onClick={() =>
+                    handleBid(
+                      product.id,
+                      product.productPrice,
+                      product.highestBid
+                    )
+                  }
                   style={{
                     backgroundColor: "#754f6e",
                     color: "white",
@@ -225,7 +241,6 @@ const MainPage = () => {
                 >
                   入札する
                 </button>
-                {/* 削除ボタン */}
                 <button
                   onClick={() => openDeleteModal(product)}
                   style={{
@@ -245,7 +260,6 @@ const MainPage = () => {
           ))}
         </div>
       )}
-      {/* 削除モーダル */}
       {isDeleteModalOpen && (
         <div
           style={{

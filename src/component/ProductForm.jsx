@@ -217,7 +217,7 @@ const ProductForm = () => {
     setFilteredProducts(productsData); // フィルタリングされた商品データを初期化
   };
 
-  const handleBid = async (productId, currentPrice) => {
+  const handleBid = async (productId, currentPrice, highestBid) => {
     const { name, price } = bidderData[productId] || {};
     if (!name || !price) {
       alert("入札者名と入札金額を入力してください。");
@@ -241,8 +241,25 @@ const ProductForm = () => {
       ...prev,
       [productId]: { name: "", price: "" },
     })); // 入札者データをクリア
-  };
 
+    const bitPrice = parseInt(price, 10);
+
+    // 入札金額が開始価格以上であることを確認
+    if (bidPrice < currentPrice) {
+      alert(
+        `入札金額は開始価格（${currentPrice}円）以上である必要があります。`
+      );
+      return;
+    }
+
+    // 最高入札額が存在する場合、その金額より高いことを確認
+    if (highestBid && bidPrice <= highestBid) {
+      alert(
+        `入札金額は現在の最高入札額（${highestBid}円）より高く設定してください。`
+      );
+      return;
+    }
+  };
   const styles = {
     container: {
       maxWidth: "600px",
@@ -483,6 +500,10 @@ const ProductForm = () => {
             <p>出品者: {product.sellerName}</p>
             <p>最高入札者: {product.highestBidder || "なし"}</p>
             <p>最高入札額: {product.highestBid || "なし"}円</p>{" "}
+            <p>
+              現在の必要入札額:{" "}
+              {(product.highestBid || product.productPrice) + 1}円以上
+            </p>
             {product.imageUrl && (
               <img
                 src={product.imageUrl}
