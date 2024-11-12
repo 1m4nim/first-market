@@ -222,10 +222,22 @@ const ProductForm = () => {
     if (!name || !price) {
       alert("入札者名と入札金額を入力してください。");
       return;
-    } // 入札金額が現在の価格より高いか確認
-    if (parseInt(price, 10) <= currentPrice) {
+    }
+
+    // 入札金額が現在の価格より高いか確認
+    // 入札金額が開始価格以上であることを確認
+    const bidPrice = parseInt(price, 10);
+
+    if (bidPrice < currentPrice) {
       alert(
-        `入札金額は現在の価格より高く設定してください。現在の価格: ${currentPrice}円`
+        `入札金額は開始価格（${currentPrice}円）以上である必要があります。`
+      );
+      return;
+    }
+    // 最高入札額が存在する場合、その金額より高いことを確認
+    if (highestBid && bidPrice <= highestBid) {
+      alert(
+        `入札金額は現在の最高入札額（${highestBid}円）より高く設定してください。`
       );
       return;
     }
@@ -241,24 +253,6 @@ const ProductForm = () => {
       ...prev,
       [productId]: { name: "", price: "" },
     })); // 入札者データをクリア
-
-    const bitPrice = parseInt(price, 10);
-
-    // 入札金額が開始価格以上であることを確認
-    if (bidPrice < currentPrice) {
-      alert(
-        `入札金額は開始価格（${currentPrice}円）以上である必要があります。`
-      );
-      return;
-    }
-
-    // 最高入札額が存在する場合、その金額より高いことを確認
-    if (highestBid && bidPrice <= highestBid) {
-      alert(
-        `入札金額は現在の最高入札額（${highestBid}円）より高く設定してください。`
-      );
-      return;
-    }
   };
   const styles = {
     container: {

@@ -50,22 +50,21 @@ const MainPage = () => {
 
   const handleBid = async (productId, currentPrice, highestBid) => {
     const { name, price } = bidderData[productId] || {};
-
     if (!name || !price) {
       alert("入札者名と入札金額を入力してください。");
       return;
     }
 
+    // 入札金額が現在の価格より高いか確認
+    // 入札金額が開始価格以上であることを確認
     const bidPrice = parseInt(price, 10);
 
-    // 入札金額が開始価格以上であることを確認
     if (bidPrice < currentPrice) {
       alert(
         `入札金額は開始価格（${currentPrice}円）以上である必要があります。`
       );
       return;
     }
-
     // 最高入札額が存在する場合、その金額より高いことを確認
     if (highestBid && bidPrice <= highestBid) {
       alert(
